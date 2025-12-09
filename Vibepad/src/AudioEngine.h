@@ -61,8 +61,8 @@ private:
     ma_device* m_pCableDevice = nullptr;
     ma_device* m_pMonitorDevice = nullptr;
 
-    void* m_pMicBuffer = nullptr;       // Структура кольцевого буфера
-    void* m_pAudioBufferData = nullptr; // Сырые данные буфера (для очистки памяти)
+    void* m_pMicBuffer = nullptr;
+    void* m_pAudioBufferData = nullptr; // Raw buffer data
 
     bool m_isInitialized = false;
 

@@ -43,11 +43,8 @@ void ConfigManager::Load() {
                 SoundEntry s;
                 s.name = Utils::Utf8ToWide(item.value("name", "Unknown"));
                 s.filename = Utils::Utf8ToWide(item.value("filename", ""));
-
-                // Load Hotkeys
                 s.hotkey = item.value("hotkey", 0);
                 s.modifiers = item.value("modifiers", 0);
-
                 if (!s.filename.empty()) m_sounds.push_back(s);
             }
         }
@@ -71,7 +68,7 @@ void ConfigManager::Save() {
         sJson["name"] = Utils::WideToUtf8(s.name);
         sJson["filename"] = Utils::WideToUtf8(s.filename);
         sJson["hotkey"] = s.hotkey;
-        sJson["modifiers"] = s.modifiers; // Save Modifiers
+        sJson["modifiers"] = s.modifiers;
         j["sounds"].push_back(sJson);
     }
 
@@ -111,7 +108,7 @@ bool ConfigManager::AddSound(const std::wstring& originalPath, const std::wstrin
     SoundEntry newSound;
     newSound.name = displayName;
     newSound.filename = fileName;
-    newSound.hotkey = 0;     // Default: No hotkey
+    newSound.hotkey = 0;
     newSound.modifiers = 0;
 
     m_sounds.push_back(newSound);

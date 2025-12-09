@@ -4,14 +4,11 @@
 #include <vector>
 #include <filesystem>
 
-// Represents a single sound entry
 struct SoundEntry {
     std::wstring name;
     std::wstring filename;
-
-    // HOTKEY DATA
-    int hotkey = 0;         // Virtual Key Code (e.g. VK_F1, 'A', etc.)
-    int modifiers = 0;      // Modifiers (MOD_ALT, MOD_CONTROL, MOD_SHIFT)
+    int hotkey = 0;
+    int modifiers = 0;
 
     std::wstring GetFullPath() const;
 };
@@ -24,12 +21,8 @@ public:
     void Load();
     void Save();
 
-    // Updated AddSound with default hotkey params
     bool AddSound(const std::wstring& originalPath, const std::wstring& displayName);
-
     void RemoveSound(int index);
-
-    // New: Update hotkey for existing sound
     void SetSoundHotkey(int index, int vkCode, int mods);
 
     const std::vector<SoundEntry>& GetSounds() const;

@@ -74,7 +74,7 @@ bool AudioEngine::Init(const std::string& inputDeviceName, const std::string& ou
     size_t bufferSizeInFrames = (size_t)(SAMPLE_RATE * 0.1f);
     size_t bufferSizeInBytes = bufferSizeInFrames * frameSizeInBytes;
 
-    // Allocate and store pointer to free it later
+    // Store pointer to free it later
     m_pAudioBufferData = ma_malloc(bufferSizeInBytes, NULL);
     memset(m_pAudioBufferData, 0, bufferSizeInBytes);
 
@@ -95,8 +95,7 @@ bool AudioEngine::Init(const std::string& inputDeviceName, const std::string& ou
     ma_device_id* pCableID = FindDeviceID(pPlaybackInfos, playbackCount, outputDeviceName);
     ma_device_id* pMonitorID = FindDeviceID(pPlaybackInfos, playbackCount, monitorDeviceName);
 
-    // 3. Configure DEVICES
-    // Capture
+    // 3. Configure DEVICES (Low Latency)
     ma_device_config config = ma_device_config_init(ma_device_type_capture);
     config.capture.pDeviceID = pInputID;
     config.capture.format = ma_format_f32;
@@ -111,7 +110,6 @@ bool AudioEngine::Init(const std::string& inputDeviceName, const std::string& ou
         ma_device_init(m_pContext, &config, m_pCaptureDevice);
     }
 
-    // Cable Output
     config = ma_device_config_init(ma_device_type_playback);
     config.playback.pDeviceID = pCableID;
     config.playback.format = ma_format_f32;
@@ -123,7 +121,6 @@ bool AudioEngine::Init(const std::string& inputDeviceName, const std::string& ou
 
     ma_device_init(m_pContext, &config, m_pCableDevice);
 
-    // Monitor Output
     config.playback.pDeviceID = pMonitorID;
     config.dataCallback = DataCallback_Monitor;
     config.performanceProfile = ma_performance_profile_low_latency;
@@ -144,14 +141,11 @@ bool AudioEngine::Init(const std::string& inputDeviceName, const std::string& ou
 
 void AudioEngine::Shutdown() {
     if (!m_isInitialized) return;
-
     ma_device_uninit(m_pCaptureDevice);
     ma_device_uninit(m_pCableDevice);
     ma_device_uninit(m_pMonitorDevice);
-
     ma_rb_uninit((ma_rb*)m_pMicBuffer);
 
-    // Free the raw buffer memory we allocated
     if (m_pAudioBufferData) {
         ma_free(m_pAudioBufferData, NULL);
         m_pAudioBufferData = nullptr;
@@ -245,7 +239,7 @@ void AudioEngine::OnCableProcess(void* pOutput, unsigned int frameCount) {
     float* pOutF32 = (float*)pOutput;
     ma_rb* rb = (ma_rb*)m_pMicBuffer;
 
-    // 1. Music (Cable Cursor)
+    // 1. Music (Using Cable Cursor)
     memset(pOutF32, 0, frameCount * CHANNELS * sizeof(float));
     MixSounds(pOutF32, frameCount, false);
 
@@ -271,7 +265,7 @@ void AudioEngine::OnCableProcess(void* pOutput, unsigned int frameCount) {
 }
 
 void AudioEngine::OnMonitorProcess(void* pOutput, unsigned int frameCount) {
-    // Music (Monitor Cursor)
+    // Music (Using Monitor Cursor)
     memset(pOutput, 0, frameCount * CHANNELS * sizeof(float));
     MixSounds((float*)pOutput, frameCount, true);
 }

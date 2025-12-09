@@ -1,19 +1,19 @@
 {
     "input_device_id": "Microphone Array (Realtek(R) Audio)",
-    "mic_volume": 1.0,
+    "mic_volume": 2.0,
     "monitor_device_id": "Headphones (JBL Tune 720BT)",
     "output_device_id": "CABLE Input (VB-Audio Virtual Cable)",
-    "sound_volume": 0.09000000357627869,
+    "sound_volume": 0.009999999776482582,
     "sounds": [
         {
             "filename": "DEJA VU.mp3",
-            "hotkey": 38,
+            "hotkey": 112,
             "modifiers": 0,
             "name": "DEJA VU"
         },
         {
             "filename": "tokio_drift.mp3",
-            "hotkey": 40,
+            "hotkey": 113,
             "modifiers": 0,
             "name": "tokio_drift"
         }
