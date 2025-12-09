@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="Vibepad/Vibepad.vcxproj" Id="5080d502-46cb-4232-87de-091b28c0a49c" />
+</Solution>
