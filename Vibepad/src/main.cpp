@@ -240,6 +240,14 @@ void RemoveSelectedSound() {
     if (iPos != -1) {
         LVITEM li = { 0 }; li.iItem = iPos; li.mask = LVIF_PARAM;
         ListView_GetItem(hList, &li);
+
+        const auto& sounds = g_config.GetSounds();
+        if ((int)li.lParam < (int)sounds.size()) {
+            std::wstring path = sounds[li.lParam].GetFullPath();
+
+            g_engine.FreeSound(path);
+        }
+
         g_config.RemoveSound((int)li.lParam);
         RefreshSoundList();
         RegisterConfigHotkeys();

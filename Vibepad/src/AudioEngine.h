@@ -5,6 +5,7 @@
 #include <mutex>
 #include <atomic>
 #include <memory>
+#include <map>
 
 // Forward declarations
 struct ma_context;
@@ -44,6 +45,7 @@ public:
     std::vector<DeviceInfo> GetOutputDevices();
 
     void PlaySoundFile(const std::wstring& fullPath);
+    void FreeSound(const std::wstring& fullPath);
     void StopAllSounds();
 
     void SetMicVolume(float volume);
@@ -55,6 +57,8 @@ public:
 
 private:
     void MixSounds(float* pOutput, unsigned int frameCount, bool isMonitor);
+
+    std::map<std::wstring, std::shared_ptr<AudioData>> m_audioCache;
 
     ma_context* m_pContext = nullptr;
     ma_device* m_pCaptureDevice = nullptr;

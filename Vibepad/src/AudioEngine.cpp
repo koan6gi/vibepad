@@ -171,34 +171,54 @@ std::vector<DeviceInfo> AudioEngine::GetOutputDevices() { return m_outputDevices
 // PLAYBACK LOGIC
 // -----------------------------------------------------------------------------
 void AudioEngine::PlaySoundFile(const std::wstring& fullPath) {
-    std::string pathUtf8 = Utils::WideToUtf8(fullPath);
-    ma_decoder decoder;
-    ma_decoder_config config = ma_decoder_config_init(ma_format_f32, CHANNELS, SAMPLE_RATE);
-    if (ma_decoder_init_file(pathUtf8.c_str(), &config, &decoder) != MA_SUCCESS) return;
+    std::shared_ptr<AudioData> audioData = nullptr;
 
-    ma_uint64 totalFrames = 0;
-    ma_decoder_get_length_in_pcm_frames(&decoder, &totalFrames);
-    if (totalFrames == 0) totalFrames = 1024 * 1024;
+    auto it = m_audioCache.find(fullPath);
+    if (it != m_audioCache.end()) {
+        audioData = it->second;
+    }
+    else {
+        std::string pathUtf8 = Utils::WideToUtf8(fullPath);
+        ma_decoder decoder;
+        ma_decoder_config config = ma_decoder_config_init(ma_format_f32, CHANNELS, SAMPLE_RATE);
 
-    std::vector<float> tempBuffer(totalFrames * CHANNELS);
-    ma_uint64 framesRead = 0;
-    ma_decoder_read_pcm_frames(&decoder, tempBuffer.data(), totalFrames, &framesRead);
-    tempBuffer.resize(framesRead * CHANNELS);
-    ma_decoder_uninit(&decoder);
+        if (ma_decoder_init_file(pathUtf8.c_str(), &config, &decoder) != MA_SUCCESS) {
+            return;
+        }
 
-    if (framesRead > 0) {
-        auto audio = std::make_shared<AudioData>();
-        audio->samples = std::move(tempBuffer);
+        ma_uint64 totalFrames = 0;
+        ma_decoder_get_length_in_pcm_frames(&decoder, &totalFrames);
+        if (totalFrames == 0) totalFrames = 1024 * 1024;
+
+        std::vector<float> tempBuffer(totalFrames * CHANNELS);
+        ma_uint64 framesRead = 0;
+        ma_decoder_read_pcm_frames(&decoder, tempBuffer.data(), totalFrames, &framesRead);
+        tempBuffer.resize(framesRead * CHANNELS);
+        ma_decoder_uninit(&decoder);
+
+        if (framesRead == 0) return;
+
+        audioData = std::make_shared<AudioData>();
+        audioData->samples = std::move(tempBuffer);
+
+        m_audioCache[fullPath] = audioData;
+    }
+
+    if (audioData) {
         std::lock_guard<std::mutex> lock(m_soundMutex);
 
         ActiveSound sound;
-        sound.data = audio;
+        sound.data = audioData; 
         sound.cursorCable = 0;
         sound.cursorMonitor = 0;
         sound.finished = false;
 
         m_activeSounds.push_back(sound);
     }
+}
+
+void AudioEngine::FreeSound(const std::wstring& fullPath) {
+    m_audioCache.erase(fullPath);
 }
 
 void AudioEngine::StopAllSounds() {
