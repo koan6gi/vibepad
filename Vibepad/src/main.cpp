@@ -17,7 +17,6 @@
 #include "AudioEngine.h"
 #include "Utils.h"
 
-// GLOBALS
 ConfigManager g_config;
 AudioEngine   g_engine;
 
@@ -56,7 +55,7 @@ const int HOTKEY_ID_BASE = 5000;
 const int HOTKEY_ID_PANIC = 4999;
 
 // -----------------------------------------------------------------------------
-// UI STYLING HELPERS
+// HELPERS
 // -----------------------------------------------------------------------------
 
 void CreateFonts() {
@@ -68,9 +67,11 @@ void SetFont(HWND hWnd) {
     SendMessage(hWnd, WM_SETFONT, (WPARAM)hFontNormal, TRUE);
 }
 
-// -----------------------------------------------------------------------------
-// HOTKEY UTILS
-// -----------------------------------------------------------------------------
+bool AreDevicesConfigured() {
+    return !g_config.GetInputDeviceId().empty() &&
+        !g_config.GetOutputDeviceId().empty() &&
+        !g_config.GetMonitorDeviceId().empty();
+}
 
 void UnregisterAllHotkeys(HWND hWnd) {
     if (hWnd == NULL) return;
@@ -123,10 +124,6 @@ std::wstring GetKeyString(int vk, int mods) {
     }
     return ss.str();
 }
-
-// -----------------------------------------------------------------------------
-// UI LOGIC
-// -----------------------------------------------------------------------------
 
 void RefreshSoundList() {
     ListView_DeleteAllItems(hList);
@@ -223,6 +220,11 @@ void AddSoundDialog() {
 }
 
 void PlaySelectedSound() {
+    if (!AreDevicesConfigured()) {
+        MessageBoxW(hMainWnd, L"Please select all audio devices (Input, Output A, Output B) to enable playback.", L"Configuration Required", MB_ICONWARNING);
+        return;
+    }
+
     int iPos = ListView_GetNextItem(hList, -1, LVNI_SELECTED);
     if (iPos != -1) {
         LVITEM li = { 0 }; li.iItem = iPos; li.mask = LVIF_PARAM;
@@ -280,8 +282,7 @@ void SetupTrayIcon(HWND hWnd, bool add) {
     nid.uCallbackMessage = WM_TRAY;
 
     HICON hIcon = (HICON)LoadImageW(NULL, L"resources\\app.ico", IMAGE_ICON,
-        GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON),
-        LR_LOADFROMFILE);
+        GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_LOADFROMFILE);
 
     if (!hIcon) hIcon = LoadIcon(NULL, IDI_APPLICATION);
 
@@ -341,7 +342,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     {
         CreateFonts();
 
-        // 1. SOUNDBOARD LIST
         hList = CreateWindowW(WC_LISTVIEWW, L"",
             WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | WS_BORDER | WS_VSCROLL,
             15, 15, 420, 190, hWnd, (HMENU)ID_LIST_SOUNDS, NULL, NULL);
@@ -351,14 +351,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         LVCOLUMNW lvc;
         lvc.mask = LVCF_FMT | LVCF_WIDTH | LVCF_TEXT | LVCF_SUBITEM;
 
-        // Fixed widths (295 + 100 + ~25 for scrollbar = 420)
         lvc.iSubItem = 0; lvc.pszText = (LPWSTR)L"Sound Name"; lvc.cx = 295; lvc.fmt = LVCFMT_LEFT;
         ListView_InsertColumn(hList, 0, &lvc);
 
         lvc.iSubItem = 1; lvc.pszText = (LPWSTR)L"Hotkey"; lvc.cx = 100;
         ListView_InsertColumn(hList, 1, &lvc);
 
-        // Controls
         HWND btn;
         btn = CreateWindowW(L"BUTTON", L"▶ Play", WS_CHILD | WS_VISIBLE, 450, 15, 135, 35, hWnd, (HMENU)ID_BTN_PLAY, NULL, NULL); SetFont(btn);
         btn = CreateWindowW(L"BUTTON", L"⏹ Stop (Alt+Bksp)", WS_CHILD | WS_VISIBLE, 450, 60, 135, 35, hWnd, (HMENU)ID_BTN_STOP_ALL, NULL, NULL); SetFont(btn);
@@ -367,7 +365,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         btn = CreateWindowW(L"BUTTON", L"➕ Add Sound", WS_CHILD | WS_VISIBLE, 15, 220, 120, 30, hWnd, (HMENU)ID_BTN_ADD, NULL, NULL); SetFont(btn);
         btn = CreateWindowW(L"BUTTON", L"➖ Remove", WS_CHILD | WS_VISIBLE, 145, 220, 100, 30, hWnd, (HMENU)ID_BTN_REMOVE, NULL, NULL); SetFont(btn);
 
-        // 2. VOLUME
         HWND grpVol = CreateWindowW(L"BUTTON", L"Volume Mixer", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 15, 265, 560, 80, hWnd, NULL, NULL, NULL); SetFont(grpVol);
 
         HWND lbl = CreateWindowW(L"STATIC", L"🎤 Mic:", WS_CHILD | WS_VISIBLE, 30, 295, 60, 20, hWnd, NULL, NULL, NULL); SetFont(lbl);
@@ -382,7 +379,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
         SendMessage(hSndSlider, TBM_SETPOS, TRUE, (int)(g_config.GetSoundVolume() * 100.0f));
         g_engine.SetSoundVolume(g_config.GetSoundVolume());
 
-        // 3. DEVICES
         HWND grpDev = CreateWindowW(L"BUTTON", L"Audio Devices Configuration", WS_CHILD | WS_VISIBLE | BS_GROUPBOX, 15, 355, 560, 160, hWnd, NULL, NULL, NULL); SetFont(grpDev);
 
         lbl = CreateWindowW(L"STATIC", L"Input (Microphone):", WS_CHILD | WS_VISIBLE, 30, 385, 150, 20, hWnd, NULL, NULL, NULL); SetFont(lbl);
@@ -405,10 +401,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     case WM_HOTKEY:
     {
         int id = (int)wParam;
+
         if (id == HOTKEY_ID_PANIC) {
             g_engine.StopAllSounds();
         }
         else {
+            if (!AreDevicesConfigured()) {
+                MessageBoxW(hMainWnd, L"Please select all audio devices (Input, Output A, Output B) to enable playback.", L"Configuration Required", MB_ICONWARNING | MB_TOPMOST);
+                break;
+            }
+
             int soundIndex = id - HOTKEY_ID_BASE;
             const auto& sounds = g_config.GetSounds();
             if (soundIndex >= 0 && soundIndex < (int)sounds.size()) {
@@ -483,6 +485,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 }
 
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
+    HANDLE hMutex = CreateMutexW(NULL, TRUE, L"Local\\Vibepad_Instance_Mutex_v1");
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+        HWND hExistingWnd = FindWindowW(L"VibepadClass", NULL);
+        if (hExistingWnd) {
+            ShowWindow(hExistingWnd, SW_RESTORE);
+            SetForegroundWindow(hExistingWnd);
+        }
+        return 0;
+    }
+
     if (!Utils::IsVBCableInstalled()) {
         int msgId = MessageBoxW(NULL, L"VB-Audio Virtual Cable driver is not installed.\nInstall it now?", L"Driver Missing", MB_ICONWARNING | MB_YESNO | MB_DEFBUTTON1);
         if (msgId == IDYES) {
@@ -528,5 +540,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow) {
 
     g_engine.Shutdown();
     CoUninitialize();
+    if (hMutex) CloseHandle(hMutex);
     return (int)msg.wParam;
 }
